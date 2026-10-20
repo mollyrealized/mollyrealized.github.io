@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The Ball in the Box</title>
+  <style>
+    :root {
+      --page-bg: #000000;
+      --text-main: #eee8ff;
+      --box-outline: rgba(232, 226, 255, 0.84);
+      --box-fill: rgba(255, 255, 255, 0.025);
+      --pain-color: #745139;
+      --pain-text: #fff3f0;
+      --ball-blue: #8fcfff;
+      --ball-blue-deep: #49a9e8;
+      --flash-color: rgba(255, 255, 255, 0.38);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+      margin: 0;
+      background: var(--page-bg);
+      color: var(--text-main);
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    main {
+      width: 100%;
+      min-height: 100vh;
+      padding: clamp(22px, 5vh, 54px) 16px 24px;
+      text-align: center;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", Times, serif;
+      font-size: 22px;
+      line-height: 1.05;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      color: var(--text-main);
+      text-shadow: 0 0 9px rgba(188, 203, 255, 0.4);
+    }
+
+    .subtitle {
+      margin: 8px 0 22px;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 12px;
+      font-variant: small-caps;
+      text-transform: uppercase;
+      letter-spacing: 0.38em;
+      color: rgba(238, 232, 255, 0.9);
+    }
+
+    /* The box sits on the bottom of the stage and grows upward and outward,
+       so its bottom edge, and the PAIN button on it, stay fixed on screen. */
+    .stage {
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      width: 100%;
+    }
+
+    #box {
+      position: relative;
+      flex: 0 0 auto;
+      box-sizing: content-box;
+      border: 2px solid var(--box-outline);
+      border-radius: 14px;
+      background: var(--box-fill);
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.06) inset,
+        0 0 22px rgba(158, 180, 255, 0.16);
+      overflow: hidden;
+    }
+
+    #box::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      pointer-events: none;
+      background: var(--flash-color);
+      opacity: 0;
+    }
+
+    #box.flash::after {
+      animation: flash-box 320ms ease-out;
+    }
+
+    @keyframes flash-box {
+      0% { opacity: 0.72; }
+      100% { opacity: 0; }
+    }
+
+    #pain {
+      position: absolute;
+      z-index: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-radius: 2px;
+      background: var(--pain-color);
+      color: var(--pain-text);
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.13em;
+      text-transform: uppercase;
+      user-select: none;
+      box-shadow: 0 0 13px rgba(255, 120, 90, 0.13) inset;
+    }
+
+    .pain-label {
+      display: inline-block;
+      white-space: nowrap;
+      line-height: 1;
+      pointer-events: none;
+    }
+
+    #ball {
+      position: absolute;
+      z-index: 2;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 35% 28%, #e0f5ff 0%, var(--ball-blue) 34%, var(--ball-blue-deep) 72%, #2f88c9 100%);
+      box-shadow:
+        0 0 18px rgba(126, 209, 255, 0.78),
+        0 0 34px rgba(126, 209, 255, 0.34);
+      will-change: left, top;
+    }
+
+    .note {
+      position: fixed;
+      right: 12px;
+      bottom: 10px;
+      max-width: min(470px, calc(100vw - 24px));
+      margin: 0;
+      font-size: 11px;
+      line-height: 1.35;
+      color: rgba(238, 232, 255, 0.44);
+      text-align: right;
+      user-select: none;
+    }
+  </style>
+</head>
+<body>
+  <main aria-label="The Ball in the Box: a metaphor for grief">
+    <h1>The Ball in the Box</h1>
+    <div class="subtitle">a metaphor for grief</div>
+
+    <div class="stage" id="stage">
+      <div id="box" aria-label="box containing pain button and bouncing ball">
+        <div id="pain"><span class="pain-label">PAIN</span></div>
+        <div id="ball" aria-hidden="true"></div>
+      </div>
+    </div>
+
+    <p class="note">Self-contained HTML. Edit constants at the top of the script to adjust timing, speed, and size.</p>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      /*
+        Version: v8-edge-button-2026-10-18
+
+        The box grows with time, not with pain.
+        - The pain button never changes size or position. It sits flush
+          against the bottom edge of the box, centered left to right. The
+          box grows upward and outward from that edge, so the button also
+          stays fixed on screen. Against the wall, only three of its sides
+          are exposed to the ball.
+        - The ball never changes size or speed.
+        - Every hit flashes at the same full strength, early or late.
+        - Growth runs for GROWTH_DURATION_SECONDS, fast at first and slowing
+          steadily, and stops exactly at the size limit. After that the box
+          holds its size and the ball keeps bouncing, still able to hit.
+        - The size limit comes from the window's width and height, so the
+          box never runs off the page. It is recalculated on resize.
+        - Growth time counts only while the page is visible.
+      */
+
+      const GROWTH_DURATION_SECONDS = 225; // 3 minutes 45 seconds
+
+      // Starting box: tight around the button, just enough room for the ball.
+      const START_BOX_WIDTH = 156;
+      const START_BOX_HEIGHT = 62;
+
+      // Size limits for the fully grown box.
+      const MAX_BOX_WIDTH = 1200;
+      const SIDE_GUTTER = 16;
+      const BOTTOM_RESERVE = 44; // keeps the box clear of the note
+      const BOX_BORDER = 2;
+
+      const BALL_DIAMETER = 20;
+      const BALL_SPEED_PIXELS_PER_SECOND = 140;
+
+      const PAIN_WIDTH = 96;
+      const PAIN_HEIGHT = 26;
+      const PAIN_HIT_COOLDOWN_MS = 300;
+
+      // Small random change of angle on wall bounces, so the ball never
+      // settles into a fixed loop that always or never reaches the button.
+      const BOUNCE_JITTER_DEGREES = 4;
+      const MIN_AXIS_SHARE = 0.12;
+
+      const RESPECT_REDUCED_MOTION = false;
+
+      const stage = document.getElementById("stage");
+      const box = document.getElementById("box");
+      const pain = document.getElementById("pain");
+      const ball = document.getElementById("ball");
+
+      let maxBoxWidth = START_BOX_WIDTH;
+      let maxBoxHeight = START_BOX_HEIGHT;
+      let boxWidth = START_BOX_WIDTH;
+      let boxHeight = START_BOX_HEIGHT;
+      let elapsedSeconds = 0;
+      let previousTime = null;
+      let lastPainHit = -Infinity;
+
+      const painRect = { x: 0, y: 0, width: PAIN_WIDTH, height: PAIN_HEIGHT };
+      const ballState = { x: 0, y: 0, vx: 0, vy: 0 };
+
+      function clamp(value, min, max) {
+        return Math.max(min, Math.min(max, value));
+      }
+
+      function computeLimits() {
+        const stageTop = stage.getBoundingClientRect().top;
+        maxBoxWidth = Math.max(
+          START_BOX_WIDTH,
+          Math.min(MAX_BOX_WIDTH, window.innerWidth - SIDE_GUTTER * 2 - BOX_BORDER * 2)
+        );
+        maxBoxHeight = Math.max(
+          START_BOX_HEIGHT,
+          Math.floor(window.innerHeight - stageTop - BOTTOM_RESERVE - BOX_BORDER * 2)
+        );
+        // A fixed-height stage keeps the box's bottom edge, and so the
+        // button, in the same place on screen while the box grows.
+        stage.style.height = `${maxBoxHeight + BOX_BORDER * 2}px`;
+      }
+
+      function growthProgress() {
+        const t = clamp(elapsedSeconds / GROWTH_DURATION_SECONDS, 0, 1);
+        // Ease-out cubic: fast early, slowing, exactly 1 at the end.
+        return 1 - Math.pow(1 - t, 3);
+      }
+
+      function placePain() {
+        painRect.x = (boxWidth - painRect.width) / 2;
+        painRect.y = boxHeight - painRect.height;
+        pain.style.width = `${painRect.width}px`;
+        pain.style.height = `${painRect.height}px`;
+        pain.style.left = `${painRect.x}px`;
+        pain.style.top = `${painRect.y}px`;
+      }
+
+      function drawBall() {
+        ball.style.left = `${ballState.x}px`;
+        ball.style.top = `${ballState.y}px`;
+      }
+
+      function clampBallToBox() {
+        ballState.x = clamp(ballState.x, 0, boxWidth - BALL_DIAMETER);
+        ballState.y = clamp(ballState.y, 0, boxHeight - BALL_DIAMETER);
+      }
+
+      function applyBoxSize(width, height) {
+        // The box grows evenly left and right, and upward only, so shift the
+        // ball by half the width change and all of the height change to keep
+        // it where it was on screen.
+        ballState.x += (width - boxWidth) / 2;
+        ballState.y += height - boxHeight;
+
+        boxWidth = width;
+        boxHeight = height;
+        box.style.width = `${boxWidth}px`;
+        box.style.height = `${boxHeight}px`;
+
+        placePain();
+        clampBallToBox();
+      }
+
+      function updateBoxSize() {
+        const p = growthProgress();
+        const width = START_BOX_WIDTH + (maxBoxWidth - START_BOX_WIDTH) * p;
+        const height = START_BOX_HEIGHT + (maxBoxHeight - START_BOX_HEIGHT) * p;
+        if (width !== boxWidth || height !== boxHeight) {
+          applyBoxSize(width, height);
+        }
+      }
+
+      function normalizeVelocity() {
+        let speed = Math.hypot(ballState.vx, ballState.vy) || 1;
+        ballState.vx = (ballState.vx / speed) * BALL_SPEED_PIXELS_PER_SECOND;
+        ballState.vy = (ballState.vy / speed) * BALL_SPEED_PIXELS_PER_SECOND;
+
+        // Keep the path from going almost flat or almost vertical.
+        const minComponent = BALL_SPEED_PIXELS_PER_SECOND * MIN_AXIS_SHARE;
+        if (Math.abs(ballState.vx) < minComponent) {
+          ballState.vx = (ballState.vx < 0 ? -1 : 1) * minComponent;
+        }
+        if (Math.abs(ballState.vy) < minComponent) {
+          ballState.vy = (ballState.vy < 0 ? -1 : 1) * minComponent;
+        }
+        speed = Math.hypot(ballState.vx, ballState.vy);
+        ballState.vx = (ballState.vx / speed) * BALL_SPEED_PIXELS_PER_SECOND;
+        ballState.vy = (ballState.vy / speed) * BALL_SPEED_PIXELS_PER_SECOND;
+      }
+
+      function jitterVelocity() {
+        const angle = (Math.random() * 2 - 1) * BOUNCE_JITTER_DEGREES * Math.PI / 180;
+        const cos = Math.cos(angle);
+        const sin = Math.sin(angle);
+        const vx = ballState.vx * cos - ballState.vy * sin;
+        const vy = ballState.vx * sin + ballState.vy * cos;
+        ballState.vx = vx;
+        ballState.vy = vy;
+      }
+
+      function bounceOffBoxEdges() {
+        let hitLeft = false;
+        let hitRight = false;
+        let hitTop = false;
+        let hitBottom = false;
+
+        if (ballState.x <= 0) {
+          ballState.x = 0;
+          hitLeft = true;
+        } else if (ballState.x + BALL_DIAMETER >= boxWidth) {
+          ballState.x = boxWidth - BALL_DIAMETER;
+          hitRight = true;
+        }
+
+        if (ballState.y <= 0) {
+          ballState.y = 0;
+          hitTop = true;
+        } else if (ballState.y + BALL_DIAMETER >= boxHeight) {
+          ballState.y = boxHeight - BALL_DIAMETER;
+          hitBottom = true;
+        }
+
+        if (!(hitLeft || hitRight || hitTop || hitBottom)) return;
+
+        jitterVelocity();
+        normalizeVelocity();
+
+        if (hitLeft) ballState.vx = Math.abs(ballState.vx);
+        if (hitRight) ballState.vx = -Math.abs(ballState.vx);
+        if (hitTop) ballState.vy = Math.abs(ballState.vy);
+        if (hitBottom) ballState.vy = -Math.abs(ballState.vy);
+      }
+
+      // Returns true when the ball touches the button; also bounces it off.
+      function resolvePainCollision() {
+        const radius = BALL_DIAMETER / 2;
+        const centerX = ballState.x + radius;
+        const centerY = ballState.y + radius;
+        const right = painRect.x + painRect.width;
+        const bottom = painRect.y + painRect.height;
+
+        let closestX = clamp(centerX, painRect.x, right);
+        let closestY = clamp(centerY, painRect.y, bottom);
+        let nx = centerX - closestX;
+        let ny = centerY - closestY;
+        const distance = Math.hypot(nx, ny);
+
+        if (distance > radius) return false;
+
+        if (distance === 0) {
+          // Ball center ended up inside the button: push it out the nearest
+          // open side. The bottom side is against the wall, so it never counts.
+          const toLeft = centerX - painRect.x;
+          const toRight = right - centerX;
+          const toTop = centerY - painRect.y;
+          const nearest = Math.min(toLeft, toRight, toTop);
+
+          if (nearest === toLeft) {
+            nx = -1; ny = 0; closestX = painRect.x; closestY = centerY;
+          } else if (nearest === toRight) {
+            nx = 1; ny = 0; closestX = right; closestY = centerY;
+          } else {
+            nx = 0; ny = -1; closestX = centerX; closestY = painRect.y;
+          }
+        } else {
+          nx /= distance;
+          ny /= distance;
+        }
+
+        ballState.x = closestX + nx * radius - radius;
+        ballState.y = closestY + ny * radius - radius;
+
+        const dot = ballState.vx * nx + ballState.vy * ny;
+        if (dot < 0) {
+          ballState.vx -= 2 * dot * nx;
+          ballState.vy -= 2 * dot * ny;
+        }
+        normalizeVelocity();
+        clampBallToBox();
+        return true;
+      }
+
+      function flashBox() {
+        box.classList.remove("flash");
+        void box.offsetWidth;
+        box.classList.add("flash");
+      }
+
+      function animate(now) {
+        if (previousTime === null) previousTime = now;
+        const rawSeconds = (now - previousTime) / 1000;
+        previousTime = now;
+
+        // Long gaps (hidden tab) don't count toward growth.
+        elapsedSeconds += Math.min(rawSeconds, 0.25);
+        updateBoxSize();
+
+        const dt = Math.min(rawSeconds, 0.05);
+        ballState.x += ballState.vx * dt;
+        ballState.y += ballState.vy * dt;
+        bounceOffBoxEdges();
+
+        if (resolvePainCollision() && now - lastPainHit >= PAIN_HIT_COOLDOWN_MS) {
+          lastPainHit = now;
+          flashBox();
+        }
+
+        drawBall();
+        requestAnimationFrame(animate);
+      }
+
+      function initialize() {
+        ball.style.width = `${BALL_DIAMETER}px`;
+        ball.style.height = `${BALL_DIAMETER}px`;
+
+        computeLimits();
+
+        boxWidth = START_BOX_WIDTH;
+        boxHeight = START_BOX_HEIGHT;
+        box.style.width = `${boxWidth}px`;
+        box.style.height = `${boxHeight}px`;
+        placePain();
+
+        // Ball starts in the top-left corner, heading for the button.
+        ballState.x = 6;
+        ballState.y = 2;
+        const radius = BALL_DIAMETER / 2;
+        const dx = painRect.x + painRect.width / 2 - (ballState.x + radius);
+        const dy = painRect.y + painRect.height / 2 - (ballState.y + radius);
+        const d = Math.hypot(dx, dy) || 1;
+        ballState.vx = (dx / d) * BALL_SPEED_PIXELS_PER_SECOND;
+        ballState.vy = (dy / d) * BALL_SPEED_PIXELS_PER_SECOND;
+        drawBall();
+
+        const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        if (RESPECT_REDUCED_MOTION && reducedMotion) return;
+        requestAnimationFrame(animate);
+      }
+
+      window.addEventListener("resize", () => {
+        computeLimits();
+        updateBoxSize();
+        drawBall();
+      });
+
+      box.addEventListener("animationend", () => box.classList.remove("flash"));
+      initialize();
+    })();
+  </script>
+</body>
+</html>
