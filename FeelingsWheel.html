@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Feelings Wheel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F7F6F2;
+    --ink: #2B2B2B;
+    --muted: #6B6B6B;
+    --line: #DDDAD2;
+    --card: #FFFFFF;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+  main {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 20px 16px 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+  h1 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--muted);
+    margin: 4px 0 0;
+    letter-spacing: 0.01em;
+  }
+  #mini {
+    width: 150px;
+    height: 150px;
+    display: block;
+  }
+  #mini path { transition: opacity 0.25s ease; }
+  #path {
+    min-height: 1.6em;
+    font-size: 1.05rem;
+    font-weight: 600;
+    text-align: center;
+  }
+  #path .sep { color: var(--muted); font-weight: 400; padding: 0 0.35em; }
+  #prompt {
+    font-size: 1.4rem;
+    font-weight: 600;
+    margin: 4px 0 2px;
+    text-align: center;
+  }
+  #choices {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  #choices.three { grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 420px) {
+    #choices.three { grid-template-columns: repeat(2, 1fr); }
+  }
+  .choice {
+    font: inherit;
+    font-size: 1.15rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 14px;
+    padding: 20px 12px;
+    min-height: 68px;
+    cursor: pointer;
+    color: var(--ink);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+    transition: transform 0.08s ease, filter 0.15s ease;
+  }
+  .choice:hover { filter: brightness(0.96); }
+  .choice:active { transform: scale(0.97); }
+  .choice:focus-visible, .ghost:focus-visible, .primary:focus-visible {
+    outline: 3px solid var(--ink);
+    outline-offset: 2px;
+  }
+  .choice.light-text { color: #FFFFFF; }
+  .actions {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .row {
+    display: flex;
+    gap: 10px;
+  }
+  .row > * { flex: 1; }
+  .ghost, .primary {
+    font: inherit;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 12px;
+    padding: 14px 12px;
+    cursor: pointer;
+  }
+  .ghost {
+    background: transparent;
+    color: var(--ink);
+    border: 1.5px solid var(--line);
+  }
+  .ghost:hover { background: rgba(0,0,0,0.03); }
+  .primary {
+    background: var(--card);
+    color: var(--ink);
+    border: 2px solid var(--ink);
+  }
+  .primary:hover { background: #F0EEE8; }
+  #result {
+    width: 100%;
+    background: var(--card);
+    border-radius: 18px;
+    padding: 28px 20px;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    border-top: 8px solid transparent;
+  }
+  #result .label {
+    color: var(--muted);
+    font-size: 0.95rem;
+    margin-bottom: 10px;
+  }
+  #result .word {
+    font-size: 2.1rem;
+    font-weight: 700;
+    line-height: 1.15;
+    margin-bottom: 10px;
+  }
+  #result .full {
+    font-size: 1.1rem;
+    font-weight: 500;
+  }
+  #result .full .sep { color: var(--muted); padding: 0 0.35em; }
+  #copied {
+    min-height: 1.3em;
+    font-size: 0.95rem;
+    color: var(--muted);
+    text-align: center;
+  }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>How are you feeling?</h1>
+  <svg id="mini" viewBox="0 0 200 200" role="img" aria-label="Feelings wheel showing your place"></svg>
+  <div id="path" aria-live="polite"></div>
+
+  <section id="pick">
+    <div id="prompt"></div>
+  </section>
+  <div id="choices"></div>
+
+  <div id="result" hidden>
+    <div class="label">You're feeling</div>
+    <div class="word" id="resultWord"></div>
+    <div class="full" id="resultPath"></div>
+  </div>
+  <div id="copied" aria-live="polite" hidden></div>
+
+  <div class="actions">
+    <button class="primary" id="stopBtn" hidden></button>
+    <button class="primary" id="copyBtn" hidden>Copy</button>
+    <div class="row">
+      <button class="ghost" id="backBtn" hidden>Back</button>
+      <button class="ghost" id="restartBtn" hidden>Start over</button>
+    </div>
+  </div>
+</main>
+
+<script>
+// Wheel data, clockwise from 12 o'clock, matching the source image.
+const WHEEL = [
+  { name: "Joyful", colors: ["#F2C230", "#F7D97F", "#FCEAB3"], lightText: false, children: [
+    { name: "Excited", children: ["Energetic", "Playful"] },
+    { name: "Cheerful", children: ["Amused", "Delighted"] },
+    { name: "Creative", children: ["Inspired", "Curious"] },
+    { name: "Hopeful", children: ["Optimistic", "Eager"] },
+    { name: "Sensuous", children: ["Stimulated", "Daring"] },
+    { name: "Fascinated", children: ["Awed", "Absorbed"] }
+  ]},
+  { name: "Powerful", colors: ["#F28C3A", "#F7B783", "#FAD5B9"], lightText: false, children: [
+    { name: "Proud", children: ["Confident", "Accomplished"] },
+    { name: "Respected", children: ["Valued", "Appreciated"] },
+    { name: "Worthwhile", children: ["Important", "Significant"] },
+    { name: "Faithful", children: ["Loyal", "Devoted"] },
+    { name: "Discerning", children: ["Insightful", "Wise"] },
+    { name: "Successful", children: ["Capable", "Triumphant"] }
+  ]},
+  { name: "Peaceful", colors: ["#6AC06A", "#A3D7A0", "#C9E8C6"], lightText: false, children: [
+    { name: "Content", children: ["Satisfied", "Fulfilled"] },
+    { name: "Thoughtful", children: ["Reflective", "Pensive"] },
+    { name: "Intimate", children: ["Close", "Tender"] },
+    { name: "Loving", children: ["Caring", "Warm"] },
+    { name: "Trusting", children: ["Secure", "Safe"] },
+    { name: "Relaxed", children: ["Calm", "Serene"] }
+  ]},
+  { name: "Sad", colors: ["#4E8ED6", "#92BAE6", "#BFD6F2"], lightText: true, children: [
+    { name: "Lonely", children: ["Isolated", "Abandoned"] },
+    { name: "Depressed", children: ["Empty", "Hopeless"] },
+    { name: "Guilty", children: ["Remorseful", "Ashamed"] },
+    { name: "Bored", children: ["Apathetic", "Indifferent"] },
+    { name: "Tired", children: ["Sleepy", "Drained"] },
+    { name: "Hurt", children: ["Disappointed", "Grieving"] }
+  ]},
+  { name: "Mad", colors: ["#E0534F", "#EE928E", "#F5C0BE"], lightText: true, children: [
+    { name: "Frustrated", children: ["Irritated", "Annoyed"] },
+    { name: "Jealous", children: ["Envious", "Possessive"] },
+    { name: "Hostile", children: ["Aggressive", "Provoked"] },
+    { name: "Critical", children: ["Skeptical", "Dismissive"] },
+    { name: "Furious", children: ["Enraged", "Livid"] },
+    { name: "Distant", children: ["Withdrawn", "Cold"] }
+  ]},
+  { name: "Scared", colors: ["#9868CF", "#BDA2E2", "#DAC9F0"], lightText: true, children: [
+    { name: "Anxious", children: ["Worried", "Overwhelmed"] },
+    { name: "Insecure", children: ["Inadequate", "Inferior"] },
+    { name: "Confused", children: ["Bewildered", "Lost"] },
+    { name: "Helpless", children: ["Powerless", "Exposed"] },
+    { name: "Rejected", children: ["Excluded", "Unwanted"] },
+    { name: "Embarrassed", children: ["Foolish", "Awkward"] }
+  ]}
+];
+
+// sel holds indices: [core, middle, outer]. done = user has chosen a final answer.
+let sel = [];
+let done = false;
+
+const $ = id => document.getElementById(id);
+const SVGNS = "http://www.w3.org/2000/svg";
+
+// ---------- mini wheel ----------
+const CX = 100, CY = 100;
+const RINGS = [[24, 52], [52, 76], [76, 98]];
+
+function pt(r, deg) {
+  const a = deg * Math.PI / 180;
+  return [CX + r * Math.sin(a), CY - r * Math.cos(a)];
+}
+function arc(r0, r1, a0, a1) {
+  const large = (a1 - a0) > 180 ? 1 : 0;
+  const [x0, y0] = pt(r1, a0), [x1, y1] = pt(r1, a1);
+  const [x2, y2] = pt(r0, a1), [x3, y3] = pt(r0, a0);
+  return `M${x0},${y0} A${r1},${r1} 0 ${large} 1 ${x1},${y1} L${x2},${y2} A${r0},${r0} 0 ${large} 0 ${x3},${y3} Z`;
+}
+
+const segs = []; // {el, level, c, m, o}
+function buildMini() {
+  const svg = $("mini");
+  WHEEL.forEach((core, c) => {
+    const a0 = c * 60;
+    addSeg(svg, arc(...RINGS[0], a0, a0 + 60), core.colors[0], 0, c, -1, -1);
+    core.children.forEach((mid, m) => {
+      const b0 = a0 + m * 10;
+      addSeg(svg, arc(...RINGS[1], b0, b0 + 10), core.colors[1], 1, c, m, -1);
+      mid.children.forEach((_, o) => {
+        const d0 = b0 + o * 5;
+        addSeg(svg, arc(...RINGS[2], d0, d0 + 5), core.colors[2], 2, c, m, o);
+      });
+    });
+  });
+  const hole = document.createElementNS(SVGNS, "circle");
+  hole.setAttribute("cx", CX); hole.setAttribute("cy", CY); hole.setAttribute("r", RINGS[0][0] - 1);
+  hole.setAttribute("fill", "var(--bg)");
+  svg.appendChild(hole);
+  // selection outlines are drawn on top
+  const outlines = document.createElementNS(SVGNS, "g");
+  outlines.setAttribute("id", "outlines");
+  svg.appendChild(outlines);
+}
+function addSeg(svg, d, fill, level, c, m, o) {
+  const p = document.createElementNS(SVGNS, "path");
+  p.setAttribute("d", d);
+  p.setAttribute("fill", fill);
+  p.setAttribute("stroke", "#F7F6F2");
+  p.setAttribute("stroke-width", "1");
+  svg.appendChild(p);
+  segs.push({ el: p, level, c, m, o });
+}
+
+function updateMini() {
+  const [sc, sm, so] = sel;
+  segs.forEach(s => {
+    let on = true;
+    if (sc !== undefined && s.c !== sc) on = false;
+    if (on && sm !== undefined && s.level >= 1 && s.m !== sm) on = false;
+    if (on && so !== undefined && s.level === 2 && s.o !== so) on = false;
+    s.el.style.opacity = on ? "1" : "0.18";
+  });
+  const g = $("outlines");
+  g.innerHTML = "";
+  sel.forEach((idx, level) => {
+    const s = segs.find(x => x.level === level && x.c === sc &&
+      (level < 1 || x.m === sm) && (level < 2 || x.o === so));
+    if (!s) return;
+    const p = document.createElementNS(SVGNS, "path");
+    p.setAttribute("d", s.el.getAttribute("d"));
+    p.setAttribute("fill", "none");
+    p.setAttribute("stroke", "#2B2B2B");
+    p.setAttribute("stroke-width", "2");
+    p.setAttribute("stroke-linejoin", "round");
+    g.appendChild(p);
+  });
+}
+
+// ---------- helpers ----------
+function names() {
+  const out = [];
+  if (sel[0] !== undefined) out.push(WHEEL[sel[0]].name);
+  if (sel[1] !== undefined) out.push(WHEEL[sel[0]].children[sel[1]].name);
+  if (sel[2] !== undefined) out.push(WHEEL[sel[0]].children[sel[1]].children[sel[2]]);
+  return out;
+}
+function pathHTML(list) {
+  return list.map(escapeHTML).join('<span class="sep">&gt;</span>');
+}
+function escapeHTML(s) {
+  return s.replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[ch]));
+}
+
+// ---------- render ----------
+function render() {
+  const list = names();
+  const depth = sel.length;
+  updateMini();
+
+  $("copied").hidden = true;
+  $("copied").textContent = "";
+
+  if (done) {
+    $("path").innerHTML = "";
+    $("pick").hidden = true;
+    $("choices").hidden = true;
+    $("stopBtn").hidden = true;
+    $("result").hidden = false;
+    $("result").style.borderTopColor = WHEEL[sel[0]].colors[0];
+    $("resultWord").textContent = list[list.length - 1];
+    $("resultPath").innerHTML = list.length > 1 ? pathHTML(list) : "";
+    $("copyBtn").hidden = false;
+    $("copied").hidden = false;
+    $("backBtn").hidden = false;
+    $("restartBtn").hidden = false;
+    return;
+  }
+
+  $("result").hidden = true;
+  $("copyBtn").hidden = true;
+  $("pick").hidden = false;
+  $("choices").hidden = false;
+  $("path").innerHTML = pathHTML(list);
+
+  const box = $("choices");
+  box.innerHTML = "";
+  box.className = "";
+  let items, color, lightText = false;
+
+  if (depth === 0) {
+    $("prompt").textContent = "Start with the closest one";
+    items = WHEEL.map(c => c.name);
+    box.className = "three";
+  } else if (depth === 1) {
+    $("prompt").textContent = "Which of these fits better?";
+    items = WHEEL[sel[0]].children.map(m => m.name);
+    color = WHEEL[sel[0]].colors[1];
+    box.className = "three";
+  } else {
+    $("prompt").textContent = "Closer still?";
+    items = WHEEL[sel[0]].children[sel[1]].children;
+    color = WHEEL[sel[0]].colors[2];
+  }
+
+  items.forEach((label, i) => {
+    const b = document.createElement("button");
+    b.className = "choice";
+    b.textContent = label;
+    if (depth === 0) {
+      b.style.background = WHEEL[i].colors[0];
+      if (WHEEL[i].lightText) b.classList.add("light-text");
+    } else {
+      b.style.background = color;
+    }
+    b.addEventListener("click", () => choose(i));
+    box.appendChild(b);
+  });
+
+  if (depth > 0) {
+    $("stopBtn").hidden = false;
+    $("stopBtn").textContent = "That's it: " + list[list.length - 1];
+  } else {
+    $("stopBtn").hidden = true;
+  }
+  $("backBtn").hidden = depth === 0;
+  $("restartBtn").hidden = depth < 2;
+}
+
+function choose(i) {
+  sel.push(i);
+  if (sel.length === 3) done = true;
+  render();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+$("stopBtn").addEventListener("click", () => { done = true; render(); });
+
+$("backBtn").addEventListener("click", () => {
+  if (done) {
+    done = false;
+    if (sel.length === 3) sel.pop();
+  } else {
+    sel.pop();
+  }
+  render();
+});
+
+$("restartBtn").addEventListener("click", () => {
+  sel = []; done = false; render();
+});
+
+$("copyBtn").addEventListener("click", async () => {
+  const text = names().join(" > ");
+  let ok = false;
+  try {
+    await navigator.clipboard.writeText(text);
+    ok = true;
+  } catch (e) {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+    } catch (e2) { ok = false; }
+  }
+  $("copied").textContent = ok ? "Copied: " + text : "Couldn't copy here. Select the text above instead.";
+});
+
+buildMini();
+render();
+</script>
+</body>
+</html>
